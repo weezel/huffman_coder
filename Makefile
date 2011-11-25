@@ -1,4 +1,7 @@
 CC=clang
+CFLAGS=-g -ansi -pedantic -Wall 
 
 all:
-	${CC} -g -o huffman_coder -ansi -pedantic -Wall huffman_coder.c memory.c
+	${CC} ${CFLAGS} -o huffman_coder huffman_coder.c memory.c
+clean:
+	rm -f *.o huffman_coder

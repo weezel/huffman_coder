@@ -5,8 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "huffman_coder.h"
 #include "memory.h"
+#include "huffman_coder.h"
 
 int
 main(int argc, const char *argv[])
@@ -41,8 +41,10 @@ main(int argc, const char *argv[])
 	read_table2memory(t, x, y, fp);
 	add_table_padding(t, x, y, ' ');
 
-	print_table(t, y);
-	walk_tree(t, x, y, testikoodi, sizeof(testikoodi));
+	/*
+	print_table(t, x, y);
+	*/
+	walk_tree(t, y, x, testikoodi, sizeof(testikoodi));
 
 	table_free(t, x, y);
 	if (fp)
@@ -57,50 +59,85 @@ getroot(char **t, struct point *p, size_t x)
 	size_t	i = 0;
 
 	for (i = 0; i < x; i++) {
-		if (t[0][i] == NODE) {
+		if (t[0][i] == 'X') {
 			p->x = i;
 			p->y = 0;
+
 			return 0;
 		}
 	}
 
-	return 1;
+	return -1;
 }
 
+/* return 0 if next node is achieved, 1 if node is a leaf and -1 otherwise */
 int
 step_left(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	if (is_valid_cell(p->x - 1, p->y + 1, max_x, max_y) == 0) {
-		p->x--;
+	while (is_valid_cell(p->y + 1, p->x - 1, max_x, max_y) == 0) {
 		p->y++;
-		return 0;
+		p->x--;
+
+		switch (t[p->y][p->x]) {
+		case '/':
+			continue;
+		case NODE:
+			return 0;
+		default:
+			if (is_node_leaf(t, p, max_x, max_y) == 0)
+				return 1;
+		}
+
+		/*
+		if (t[p->y][p->x] == '/')
+			continue;
+		else if (t[p->y][p->x] == NODE)
+			return 0;
+		*/
 	}
 
-	return 1;
+	return -1;
 }
 
+/* return 0 if next node is achieved, 1 if node is a leaf and -1 otherwise */
 int
 step_right(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	if (is_valid_cell(p->x + 1, p->y + 1, max_x, max_y) == 0) {
+	while (is_valid_cell(p->y + 1, p->x + 1, max_x, max_y) == 0) {
 		p->x++;
 		p->y++;
-		return 0;
+
+		switch (t[p->y][p->x]) {
+		case '\\':
+			continue;
+		case NODE:
+			return 0;
+		default:
+			if (is_node_leaf(t, p, max_x, max_y) == 0)
+				return 1;
+		}
+		/*
+		if (t[p->y][p->x] == '\\')
+			continue;
+		else if (t[p->y][p->x] == NODE)
+			return 0;
+		*/
 	}
 
-	return 1;
+	return -1;
 }
 
 int
 is_node_leaf(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	if (is_valid_cell(p->x - 1, p->y, max_x, max_y) == 0 &&
-	    is_valid_cell(p->x + 1, p->y, max_y, max_y) == 0) {
-		if (t[p->x - 1][p->y] == CHILD[0] &&
-		    t[p->x + 1][p->y] == CHILD[1])
+	if ((is_valid_cell(p->y, p->x - 1, max_x, max_y) == 0) &&
+	    (is_valid_cell(p->y, p->x + 1, max_x, max_y) == 0)) {
+		if ((t[p->y][p->x - 1] == LL) &&
+		    (t[p->y][p->x + 1] == LR))
+
 			return 0;
 	}
-	return 1;
+	return -1;
 }
 
 void
@@ -113,52 +150,54 @@ walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
 		err(2, "point calloc");
 
 	/* Get the root node */
-	if (getroot(t, p, max_x) > 0) {
+	if (getroot(t, p, max_x) != 0) {
 		fprintf(stderr, "Terrible things happened.\n");
 		return;
 	}
-	fprintf(stdout, "Root found from the point: %zu,%zu\n", p->x, p->y);
+	fprintf(stdout, "Found root node from the point: %zu,%zu(%c)\n", p->y, p->x, t[p->y][p->x]);
 
 	for (i = 0; i < code_size; i++) {
-		int	c;
+		char	c;
+		int	isleaf;
+
 		c = code[i];
 
+		fprintf(stdout, "Current number[%d]: %c\n", i, c);
+
 		switch (c) {
-		case 0: /* left */
-			if (step_left(t, p, max_x, max_y) == 0) { /* stepping to left succeed */
-				if (is_node_leaf(t, p, max_x, max_y) == 0) { /* node is leaf node */
-					fprintf(stdout, "%d. letter: %c\n", i, t[p->x][p->y]);
-				}
+		case '0': /* left */
+			isleaf = step_left(t, p, max_x, max_y);
+			if (isleaf == 1) { /* stepping to left */
+				fprintf(stdout, "\tSTEP L (%zu, %zu)\n", p->y, p->x);
+				fprintf(stdout, "%d. letter: %c ", i, t[p->y][p->x]);
+				fprintf(stdout, "%zu, %zu\n", p->y, p->x);
+				getroot(t, p, max_x); /* Remember to return to root node */
 			}
 			break;
-		case 1: /* right */
-			if (step_right(t, p, max_x, max_y) == 0) { /* stepping to right succeed */
-				if (is_node_leaf(t, p, max_x, max_y) == 0) { /* node is leaf node */
-					fprintf(stdout, "%d. letter: %c\n", i, t[p->x][p->y]);
-				}
+		case '1': /* right */
+			isleaf = step_right(t, p, max_x, max_y);
+			if (isleaf == 1) { /* stepping to right */
+				fprintf(stdout, "\tSTEP R (%zu, %zu)\n", p->y, p->x);
+				fprintf(stdout, "%d. letter: %c ", i, t[p->y][p->x]);
+				fprintf(stdout, "%zu, %zu\n", p->y, p->x);
+				getroot(t, p, max_x); /* Remember to return to root node */
 			}
 			break;
 		default:
-			fprintf(stderr, "Problem with the given code (%c).\n", c);
+			fprintf(stderr, "Problem with the given code (%c, %d).\n", c, c);
 			break;
 		}
-
-		/* Remember to return to root node */
-		if (getroot(t, p, max_x) > 0) {
-			fprintf(stderr, "Terrible things happened.\n");
-			return;
-		}
 	} /* for */
-
 
 	if (p)
 		free(p);
 }
 
+/* 0 is valid, 1 is invalid*/
 int
-is_valid_cell(int x, int y, size_t xsize, size_t ysize)
+is_valid_cell(int y, int x, size_t xsize, size_t ysize)
 {
-	if ((x >= 0 && y >= 0) || (x < xsize && y < ysize))
+	if ((x >= 0 && y >= 0) && (x < xsize && y < ysize))
 		return 0;
 	return 1;
 }
@@ -233,8 +272,6 @@ add_table_padding(char **t, size_t x, size_t y, char padding)
 {
 	int i, j;
 
-	i = j = 0;
-
 	for (i = 0; i < x; i++) {
 		for (j = 0; j < y; j++) {
 			if (iscntrl(t[i][j]))
@@ -262,11 +299,14 @@ line_count(FILE *fp)
 }
 
 void
-print_table(char **t, size_t y)
+print_table(char **t, size_t max_x, size_t max_y)
 {
-	int	i = 0;
+	int	i, j;
 
-	for (i = 0; i < y; i++)
-		fprintf(stdout, "%s\n", t[i]);
+	for (i = 0; i < max_x - 5; i++) { /* XXX silly fix, pay attention */
+		for (j = 0; j < max_y; j++)
+			fprintf(stdout, "%c", t[i][j]);
+		fprintf(stdout, "\n");
+	}
 }
 

@@ -1,8 +1,9 @@
-#ifndef _HUFFMAN_CODER
+#ifndef _HUFFMAN_CODER_
 #define _HUFFMAN_CODER_
 
 #define NODE 'X'
-#define CHILD "[]"
+#define LL '['
+#define LR ']'
 
 struct point {
 	size_t	x;
@@ -20,6 +21,6 @@ size_t longest_line(FILE *);
 size_t codeline_len(FILE *);
 void add_table_padding(char **, size_t, size_t, char);
 size_t line_count(FILE *);
-void print_table(char **, size_t);
+void print_table(char **, size_t, size_t);
 
 #endif /* _HUFFMAN_CODER_ */
