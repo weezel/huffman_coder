@@ -16,7 +16,7 @@ main(int argc, const char *argv[])
 	char	**t = NULL;
 	FILE	 *fp = NULL;
 	char	 *fname = "example.txt";
-	char *testikoodi = "0111111111\0";
+	char *testikoodi = "0111111111000111111000100011111011111100111101100111011010011111000\0";
 
 	if ((fp = fopen(fname, "r")) == NULL) {
 		warn("%s\n", fname);
@@ -41,10 +41,11 @@ main(int argc, const char *argv[])
 	read_table2memory(t, x, y, fp);
 	add_table_padding(t, x, y, ' ');
 
-	/*
 	print_table(t, x, y);
-	*/
-	walk_tree(t, y, x, testikoodi, sizeof(testikoodi));
+
+	fprintf(stdout, "Code is: %s\n", testikoodi);
+	fprintf(stdout, "Deciphered code: ");
+	walk_tree(t, y, x, testikoodi, strlen(testikoodi));
 
 	table_free(t, x, y);
 	if (fp)
@@ -154,32 +155,25 @@ walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
 		fprintf(stderr, "Terrible things happened.\n");
 		return;
 	}
-	fprintf(stdout, "Found root node from the point: %zu,%zu(%c)\n", p->y, p->x, t[p->y][p->x]);
 
 	for (i = 0; i < code_size; i++) {
-		char	c;
 		int	isleaf;
+		char	c;
 
 		c = code[i];
-
-		fprintf(stdout, "Current number[%d]: %c\n", i, c);
 
 		switch (c) {
 		case '0': /* left */
 			isleaf = step_left(t, p, max_x, max_y);
 			if (isleaf == 1) { /* stepping to left */
-				fprintf(stdout, "\tSTEP L (%zu, %zu)\n", p->y, p->x);
-				fprintf(stdout, "%d. letter: %c ", i, t[p->y][p->x]);
-				fprintf(stdout, "%zu, %zu\n", p->y, p->x);
+				fprintf(stdout, "%c", t[p->y][p->x]);
 				getroot(t, p, max_x); /* Remember to return to root node */
 			}
 			break;
 		case '1': /* right */
 			isleaf = step_right(t, p, max_x, max_y);
 			if (isleaf == 1) { /* stepping to right */
-				fprintf(stdout, "\tSTEP R (%zu, %zu)\n", p->y, p->x);
-				fprintf(stdout, "%d. letter: %c ", i, t[p->y][p->x]);
-				fprintf(stdout, "%zu, %zu\n", p->y, p->x);
+				fprintf(stdout, "%c", t[p->y][p->x]);
 				getroot(t, p, max_x); /* Remember to return to root node */
 			}
 			break;
@@ -188,6 +182,7 @@ walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
 			break;
 		}
 	} /* for */
+	fprintf(stdout, "\n");
 
 	if (p)
 		free(p);
