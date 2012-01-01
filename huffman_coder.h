@@ -1,6 +1,7 @@
 #ifndef _HUFFMAN_CODER_
 #define _HUFFMAN_CODER_
 
+#define CODESIZE 4096
 #define NODE 'X'
 #define LL '['
 #define LR ']'
@@ -17,8 +18,8 @@ int is_node_leaf(char **, struct point *, size_t, size_t);
 void walk_tree(char **, size_t, size_t, char *, size_t);
 int is_valid_cell(int, int, size_t, size_t);
 void read_table2memory(char **, size_t, size_t, FILE *);
+void read_code2memory(FILE *, size_t, char *);
 size_t longest_line(FILE *);
-size_t codeline_len(FILE *);
 void add_table_padding(char **, size_t, size_t, char);
 size_t line_count(FILE *);
 void print_table(char **, size_t, size_t);

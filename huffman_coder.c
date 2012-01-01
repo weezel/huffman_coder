@@ -15,37 +15,36 @@ main(int argc, const char *argv[])
 	size_t	  y = 0;
 	char	**t = NULL;
 	FILE	 *fp = NULL;
-	char	 *fname = "example.txt";
-	char *testikoodi = "0111111111000111111000100011111011111100111101100111011010011111000\0";
+	char	 *bitcode = NULL;
+	const char *fname = NULL;
+
+	if (argc < 2)
+		fname = "example.txt";
+	else
+		fname = argv[argc - 1];
 
 	if ((fp = fopen(fname, "r")) == NULL) {
-		warn("%s\n", fname);
+		if (fp)
+			fclose(fp);
+		err(5, "%s", fname);
 		return 1;
 	}
 
 	x = longest_line(fp);
 	y = line_count(fp);
 
-	fprintf(stdout, "Max line len : %zu\n", x);
-	fprintf(stdout, "Line count   : %zu\n", y);
-	fprintf(stdout, "Table size   : %zu\n", x * y);
-
-	fprintf(stdout, "t[-1][-1]    : %zu\n", is_valid_cell(-1, -1, x, y));
-	fprintf(stdout, "t[-1][0]     : %zu\n", is_valid_cell(-1, 0, x, y));
-	fprintf(stdout, "t[0][-1]     : %zu\n", is_valid_cell(0, -1, x, y));
-	fprintf(stdout, "t[%2zu][%2zu]    : %zu\n", x, y, is_valid_cell(x, y, x, y));
-	fprintf(stdout, "t[0][0]      : %zu\n", is_valid_cell(0, 0, x, y));
-
 	t = table_alloc(x, y);
+	bitcode = line_alloc(CODESIZE + 1);
 
 	read_table2memory(t, x, y, fp);
 	add_table_padding(t, x, y, ' ');
+	read_code2memory(fp, x, bitcode);
 
 	print_table(t, x, y);
 
-	fprintf(stdout, "Code is: %s\n", testikoodi);
+	fprintf(stdout, "Code is: %s\n", bitcode);
 	fprintf(stdout, "Deciphered code: ");
-	walk_tree(t, y, x, testikoodi, strlen(testikoodi));
+	walk_tree(t, y, x, bitcode, strlen(bitcode));
 
 	table_free(t, x, y);
 	if (fp)
@@ -88,13 +87,6 @@ step_left(char **t, struct point *p, size_t max_x, size_t max_y)
 			if (is_node_leaf(t, p, max_x, max_y) == 0)
 				return 1;
 		}
-
-		/*
-		if (t[p->y][p->x] == '/')
-			continue;
-		else if (t[p->y][p->x] == NODE)
-			return 0;
-		*/
 	}
 
 	return -1;
@@ -117,12 +109,6 @@ step_right(char **t, struct point *p, size_t max_x, size_t max_y)
 			if (is_node_leaf(t, p, max_x, max_y) == 0)
 				return 1;
 		}
-		/*
-		if (t[p->y][p->x] == '\\')
-			continue;
-		else if (t[p->y][p->x] == NODE)
-			return 0;
-		*/
 	}
 
 	return -1;
@@ -181,7 +167,7 @@ walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
 			fprintf(stderr, "Problem with the given code (%c, %d).\n", c, c);
 			break;
 		}
-	} /* for */
+	}
 	fprintf(stdout, "\n");
 
 	if (p)
@@ -207,9 +193,38 @@ read_table2memory(char **t, size_t x, size_t y, FILE *fp)
 	while (fgets(t[i], x, fp) != NULL) {
 		t[i][y] = '\0';
 		i++;
+	}
+}
 
-		if (i+1 >= y-1) /* XXX eh... */
-			break;
+void
+read_code2memory(FILE *fp, size_t x, char *code)
+{
+	size_t	 charsread = 0;
+	char	 linebuf[CODESIZE];
+	char	*ch;
+	char	*codech;
+
+	rewind(fp);
+
+	while (fgets(linebuf, CODESIZE, fp) != NULL) {
+		if ((strncasecmp(linebuf, "code", 4)) == 0) {
+			ch = &linebuf[0];
+			codech = &code[0];
+			while (*ch != '\0') {
+				if (isdigit(*ch) != 0) {
+					*codech = *ch;
+					codech++;
+					charsread++;
+				}
+				ch++;
+
+			}
+			if (charsread + 1 <= CODESIZE)
+				code[charsread + 1] = '\0';
+			else
+				code[CODESIZE - 1] = '\0';
+			return;
+		}
 	}
 }
 
@@ -240,26 +255,6 @@ longest_line(FILE *fp)
 	}
 
 	return max + 2;
-}
-
-size_t
-codeline_len(FILE *fp)
-{
-	int	ch;
-	size_t	lc;
-
-	ch = lc = 0;
-
-	lseek(fileno(fp), 0, SEEK_END);
-	/*
-	while ((ch = getc(fp)) != EOF) {
-		if (ch == '\n')
-			lc++;
-	}
-	*/
-
-	ch = getc(fp);
-	return ch;
 }
 
 void
@@ -298,7 +293,7 @@ print_table(char **t, size_t max_x, size_t max_y)
 {
 	int	i, j;
 
-	for (i = 0; i < max_x - 5; i++) { /* XXX silly fix, pay attention */
+	for (i = 0; i < max_x - 5; i++) { /* XXX silly glue, fix this */
 		for (j = 0; j < max_y; j++)
 			fprintf(stdout, "%c", t[i][j]);
 		fprintf(stdout, "\n");
