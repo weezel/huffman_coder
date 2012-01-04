@@ -10,42 +10,25 @@ that should be amended. Maybe some day I will be enough furious that I fix 'em.
 Sample run against `example.txt`:
 
 	        X           
-
 	       / \          
-
 	      X   X         
-
 	     / \   \        
-
 	    X  [w]  X       
-
 	   / \     / \      
-
 	 [z]  X  [l]  X     
-
 	     / \     / \    
-
 	   [@] [f]  X  [e]  
-
 	           / \      
-
 	          X   X     
-
 	         / \   \    
-
 	       [i] [c]  X   
-
 	               / \  
-
 	              X  [s]
-
 	             / \    
-
 	           [k] [.]  
 
-
-	Code is: 0111111111000111111000100011111011111100111101100111011010011111000
-	Deciphered code: weezel@XXXX.XX (domain superseded)
+Code is: 0111111111000111111000100011111011111100111101100111011010011111000
+Deciphered code: weezel@XXXX.XX (domain superseded)
 
 
 ### Future plans
