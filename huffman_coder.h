@@ -11,17 +11,22 @@ struct point {
 	size_t	y;
 };
 
+struct fmetrics {
+	size_t max_linelen;
+	size_t lines;
+};
+
 int getroot(char **, struct point *, size_t);
 int step_left(char **, struct point *, size_t, size_t);
 int step_right(char **, struct point *, size_t, size_t);
 int is_node_leaf(char **, struct point *, size_t, size_t);
 void walk_tree(char **, size_t, size_t, char *, size_t);
-int is_valid_cell(int, int, size_t, size_t);
-void read_table2memory(char **, size_t, size_t, FILE *);
+int is_valid_cell(size_t, size_t, size_t, size_t);
+void read_table2memory(FILE *, char **, size_t, size_t);
 void read_code2memory(FILE *, size_t, char *);
-size_t longest_line(FILE *);
+void read_fmetrics(FILE *, struct fmetrics *);
 void add_table_padding(char **, size_t, size_t, char);
-size_t line_count(FILE *);
 void print_table(char **, size_t, size_t);
+void clear_screen(void);
 
 #endif /* _HUFFMAN_CODER_ */

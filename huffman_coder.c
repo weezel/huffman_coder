@@ -11,12 +11,13 @@
 int
 main(int argc, const char *argv[])
 {
-	size_t	  x = 0;
-	size_t	  y = 0;
-	char	**t = NULL;
-	FILE	 *fp = NULL;
-	char	 *bitcode = NULL;
-	const char *fname = NULL;
+	size_t		  x = 0;
+	size_t		  y = 0;
+	FILE		 *fp = NULL;
+	char		 *bitcode = NULL;
+	char		**t = NULL;
+	const char	  *fname = NULL;
+	struct fmetrics	   fm;
 
 	if (argc < 2)
 		fname = "example.txt";
@@ -27,26 +28,28 @@ main(int argc, const char *argv[])
 		if (fp)
 			fclose(fp);
 		err(5, "%s", fname);
-		return 1;
 	}
 
-	x = longest_line(fp);
-	y = line_count(fp);
+	read_fmetrics(fp, &fm);
+	x = fm.max_linelen;
+	y = fm.lines;
+
+	clear_screen();
 
 	t = table_alloc(x, y);
 	bitcode = line_alloc(CODESIZE + 1);
 
-	read_table2memory(t, x, y, fp);
-	add_table_padding(t, x, y, ' ');
+	read_table2memory(fp, t, y, x);
+	add_table_padding(t, y, x, ' ');
 	read_code2memory(fp, x, bitcode);
 
-	print_table(t, x, y);
+	print_table(t, y, x);
 
-	fprintf(stdout, "Code is: %s\n", bitcode);
+	fprintf(stdout, "\nCode is: %s [len %lu]\n", bitcode, strlen(bitcode));
 	fprintf(stdout, "Deciphered code: ");
 	walk_tree(t, y, x, bitcode, strlen(bitcode));
 
-	table_free(t, x, y);
+	table_free(t, y, x);
 	if (fp)
 		(void)fclose(fp);
 
@@ -58,11 +61,10 @@ getroot(char **t, struct point *p, size_t x)
 {
 	size_t	i = 0;
 
+	p->y = 0;
 	for (i = 0; i < x; i++) {
 		if (t[0][i] == 'X') {
 			p->x = i;
-			p->y = 0;
-
 			return 0;
 		}
 	}
@@ -74,7 +76,7 @@ getroot(char **t, struct point *p, size_t x)
 int
 step_left(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	while (is_valid_cell(p->y + 1, p->x - 1, max_x, max_y) == 0) {
+	while (is_valid_cell(p->y + 1, p->x - 1, max_y, max_x) == 0) {
 		p->y++;
 		p->x--;
 
@@ -96,7 +98,7 @@ step_left(char **t, struct point *p, size_t max_x, size_t max_y)
 int
 step_right(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	while (is_valid_cell(p->y + 1, p->x + 1, max_x, max_y) == 0) {
+	while (is_valid_cell(p->y + 1, p->x + 1, max_y, max_x) == 0) {
 		p->x++;
 		p->y++;
 
@@ -117,8 +119,8 @@ step_right(char **t, struct point *p, size_t max_x, size_t max_y)
 int
 is_node_leaf(char **t, struct point *p, size_t max_x, size_t max_y)
 {
-	if ((is_valid_cell(p->y, p->x - 1, max_x, max_y) == 0) &&
-	    (is_valid_cell(p->y, p->x + 1, max_x, max_y) == 0)) {
+	if ((is_valid_cell(p->y, p->x - 1, max_y, max_x) == 0) &&
+	    (is_valid_cell(p->y, p->x + 1, max_y, max_x) == 0)) {
 		if ((t[p->y][p->x - 1] == LL) &&
 		    (t[p->y][p->x + 1] == LR))
 
@@ -128,7 +130,7 @@ is_node_leaf(char **t, struct point *p, size_t max_x, size_t max_y)
 }
 
 void
-walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
+walk_tree(char **t, size_t max_y, size_t max_x, char *code, size_t code_size)
 {
 	int		 i;
 	struct point	*p;
@@ -176,22 +178,26 @@ walk_tree(char **t, size_t max_x, size_t max_y, char *code, size_t code_size)
 
 /* 0 is valid, 1 is invalid*/
 int
-is_valid_cell(int y, int x, size_t xsize, size_t ysize)
+is_valid_cell(size_t y, size_t x, size_t ysize, size_t xsize)
 {
-	if ((x >= 0 && y >= 0) && (x < xsize && y < ysize))
-		return 0;
-	return 1;
+	if ((x >= xsize) || y >= ysize)
+		return 1;
+	return 0;
 }
 
 void
-read_table2memory(char **t, size_t x, size_t y, FILE *fp)
+read_table2memory(FILE *fp, char **t, size_t y, size_t x)
 {
 	size_t	 i = 0;
 
-	rewind(fp);
+	(void)fseek(fp, 0L, SEEK_SET);
 
-	while (fgets(t[i], x, fp) != NULL) {
-		t[i][y] = '\0';
+	while (i <= y && fgets(t[i], x, fp) != NULL) {
+		char *p;
+
+		p = memrchr(t[i], '\n', x);
+		if (p)
+			*p = '\0';
 		i++;
 	}
 }
@@ -228,75 +234,63 @@ read_code2memory(FILE *fp, size_t x, char *code)
 	}
 }
 
-size_t
-longest_line(FILE *fp)
+/* read line count and the longest line from file */
+void
+read_fmetrics(FILE *fp, struct fmetrics *fm)
 {
-	int	ch;
-	int	prevch;
-	int	i;
-	int	max;
+	size_t	linecnt;
+	size_t	line_len;
+	size_t	max;
+	char	ch, prevch;
+
+	linecnt = line_len = max= 0;
 
 	rewind(fp);
 
-	ch = prevch = i = max = 0;
-
 	while ((ch = getc(fp)) != EOF) {
-		/* do not read last line since it includes "code:" */
-		if (prevch == '\n' && ch == '\n')
-			break;
-
+		line_len++;
 		if (ch == '\n') {
-			if (i > max)
-				max = i;
-			i = 0;
+			if (prevch == '\n')
+				break;
+			linecnt++;
+
+			if (line_len > max)
+				max = line_len;
+			line_len = 0;
 		}
-		i++;
 		prevch = ch;
 	}
-
-	return max + 2;
+	fm->lines = linecnt;
+	fm->max_linelen = max + 1;
 }
 
 void
-add_table_padding(char **t, size_t x, size_t y, char padding)
+add_table_padding(char **t, size_t y, size_t x, char padding)
 {
 	int i, j;
 
-	for (i = 0; i < x; i++) {
-		for (j = 0; j < y; j++) {
-			if (iscntrl(t[i][j]))
+	for (i = 0; i < y; i++) {
+		for (j = 0; j < x; j++) {
+			if (iscntrl(t[i][j]) || t[i][j] == ' ')
 				t[i][j] = padding;
 		}
 	}
 }
 
-size_t
-line_count(FILE *fp)
-{
-	int	ch;
-	size_t	lc;
-
-	ch = lc = 0;
-
-	lseek(fileno(fp), 0, SEEK_SET);
-
-	while ((ch = getc(fp)) != EOF) {
-		if (ch == '\n')
-			lc++;
-	}
-
-	return lc;
-}
-
 void
-print_table(char **t, size_t max_x, size_t max_y)
+print_table(char **t, size_t max_y, size_t max_x)
 {
 	int	i, j;
 
-	for (i = 0; i < max_x - 5; i++) { /* XXX silly glue, fix this */
-		for (j = 0; j < max_y; j++)
+	for (i = 0; i < max_y; i++) {
+		for (j = 0; j < max_x; j++)
 			fprintf(stdout, "%c", t[i][j]);
 		fprintf(stdout, "\n");
 	}
 }
 
+void
+clear_screen(void)
+{
+	printf("%c[2J", 27);
+}

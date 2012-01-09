@@ -14,16 +14,16 @@ line_alloc(size_t n)
 }
 
 char **
-table_alloc(size_t x, size_t y)
+table_alloc(size_t y, size_t x)
 {
-	int	  i;
+	size_t	  i;
 	char	**table = NULL;
 
-	if ((table = calloc(x, sizeof(char *))) == NULL)
+	if ((table = calloc(y, sizeof(char *))) == NULL)
 		err(1, "malloc");
 
-	for (i = 0; i < x; i++) {
-		if ((table[i] = calloc(y, sizeof(char))) == NULL)
+	for (i = 0; i < y; i++) {
+		if ((table[i] = calloc(x, sizeof(char))) == NULL)
 			err(1, "malloc");
 	}
 
@@ -31,11 +31,11 @@ table_alloc(size_t x, size_t y)
 }
 
 void
-table_free(char **t, size_t x, size_t y)
+table_free(char **t, size_t y, size_t x)
 {
-	int	i;
+	size_t	i;
 
-	for (i = 0; i < x; i++) {
+	for (i = 0; i < y; i++) {
 		if (t[i]) {
 			(void)free(t[i]);
 			t[i] = NULL;
